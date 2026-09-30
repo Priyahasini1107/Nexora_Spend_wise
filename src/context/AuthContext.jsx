@@ -1,5 +1,11 @@
+```jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, getSupabaseConfig, saveSupabaseCredentials, clearSupabaseCredentials } from '../lib/supabase';
+import {
+  supabase,
+  getSupabaseConfig,
+  saveSupabaseCredentials,
+  clearSupabaseCredentials
+} from '../lib/supabase';
 import { MOCK_USER, MOCK_PROFILE } from '../lib/mockData';
 import { profileService } from '../services/profileService';
 
@@ -23,19 +29,31 @@ export const AuthProvider = ({ children }) => {
       supabase.auth.getSession().then(({ data: { session } }) => {
         setSession(session);
         setUser(session?.user ?? null);
+
         if (session?.user) {
-          fetchUserProfile(session.user.id, session.user.user_metadata, session.user.email);
+          fetchUserProfile(
+            session.user.id,
+            session.user.user_metadata,
+            session.user.email
+          );
         } else {
           setLoading(false);
         }
       });
 
       // Listen for auth changes
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const {
+        data: { subscription }
+      } = supabase.auth.onAuthStateChange(async (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+
         if (session?.user) {
-          await fetchUserProfile(session.user.id, session.user.user_metadata, session.user.email);
+          await fetchUserProfile(
+            session.user.id,
+            session.user.user_metadata,
+            session.user.email
+          );
         } else {
           setProfile(null);
           setLoading(false);
@@ -54,13 +72,22 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const fetchUserProfile = async (userId, metadata = null, email = null) => {
+  const fetchUserProfile = async (
+    userId,
+    metadata = null,
+    email = null
+  ) => {
     try {
       const p = await profileService.get(userId, true, metadata);
+
       if (p && p.full_name) {
         setProfile(p);
       } else {
-        const realName = metadata?.full_name || email?.split('@')[0] || 'User';
+        const realName =
+          metadata?.full_name ||
+          email?.split('@')[0] ||
+          'User';
+
         const fallbackProf = {
           id: userId,
           full_name: realName,
@@ -68,11 +95,15 @@ export const AuthProvider = ({ children }) => {
           currency: 'INR',
           monthly_savings_goal: 25000
         };
+
         setProfile(fallbackProf);
 
         // Auto-create in Supabase profiles table
         if (supabase) {
-          await supabase.from('profiles').upsert([fallbackProf]).catch(() => {});
+          await supabase
+            .from('profiles')
+            .upsert([fallbackProf])
+            .catch(() => {});
         }
       }
     } catch (err) {
@@ -84,14 +115,19 @@ export const AuthProvider = ({ children }) => {
 
   const signUp = async ({ email, password, fullName }) => {
     setAuthError(null);
+
     if (!isLiveSupabase || !supabase) {
       // Demo Mode signup
       const newUser = {
         id: `usr_${Date.now()}`,
         email,
-        user_metadata: { full_name: fullName }
+        user_metadata: {
+          full_name: fullName
+        }
       };
+
       setUser(newUser);
+
       setProfile({
         id: newUser.id,
         full_name: fullName,
@@ -99,6 +135,7 @@ export const AuthProvider = ({ children }) => {
         currency: 'INR',
         monthly_savings_goal: 25000
       });
+
       return { user: newUser };
     }
 
@@ -106,7 +143,9 @@ export const AuthProvider = ({ children }) => {
       email,
       password,
       options: {
-        data: { full_name: fullName }
+        data: {
+          full_name: fullName
+        }
       }
     });
 
@@ -117,6 +156,7 @@ export const AuthProvider = ({ children }) => {
 
     if (data?.user) {
       setUser(data.user);
+
       const newProf = {
         id: data.user.id,
         full_name: fullName,
@@ -124,11 +164,14 @@ export const AuthProvider = ({ children }) => {
         currency: 'INR',
         monthly_savings_goal: 25000
       };
+
       setProfile(newProf);
 
       // Upsert profile in Supabase profiles table immediately
       try {
-        await supabase.from('profiles').upsert([newProf]);
+        await supabase
+          .from('profiles')
+          .upsert([newProf]);
       } catch (e) {
         console.warn('Profile sync notice:', e);
       }
@@ -139,26 +182,33 @@ export const AuthProvider = ({ children }) => {
 
   const signIn = async ({ email, password }) => {
     setAuthError(null);
+
     if (!isLiveSupabase || !supabase) {
       // Demo Mode signin
       const demoUser = {
         id: 'usr_demo_8829',
         email,
-        user_metadata: { full_name: email.split('@')[0] }
+        user_metadata: {
+          full_name: email.split('@')[0]
+        }
       };
+
       setUser(demoUser);
+
       setProfile({
         ...MOCK_PROFILE,
         email,
         full_name: email.split('@')[0]
       });
+
       return { user: demoUser };
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    const { data, error } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
     if (error) {
       setAuthError(error.message);
@@ -172,20 +222,26 @@ export const AuthProvider = ({ children }) => {
     if (isLiveSupabase && supabase) {
       await supabase.auth.signOut();
     }
+
     setUser(null);
     setProfile(null);
     setSession(null);
   };
 
+  // PASSWORD RESET
   const resetPassword = async (email) => {
     setAuthError(null);
+
     if (!isLiveSupabase || !supabase) {
-      return { message: 'Demo mode: Password reset email simulated.' };
+      return {
+        message: 'Demo mode: Password reset email simulated.'
+      };
     }
 
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin
-    });
+    const { data, error } =
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/update-password`
+      });
 
     if (error) {
       setAuthError(error.message);
@@ -197,8 +253,15 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (updates) => {
     if (!user) return;
-    const updated = await profileService.update(user.id, updates, isLiveSupabase);
+
+    const updated = await profileService.update(
+      user.id,
+      updates,
+      isLiveSupabase
+    );
+
     setProfile(updated);
+
     return updated;
   };
 
@@ -208,7 +271,12 @@ export const AuthProvider = ({ children }) => {
     setAuthError(null);
   };
 
-  const isLiveSession = Boolean(isLiveSupabase && session?.user && user && user.id === session.user.id);
+  const isLiveSession = Boolean(
+    isLiveSupabase &&
+      session?.user &&
+      user &&
+      user.id === session.user.id
+  );
 
   return (
     <AuthContext.Provider
@@ -237,8 +305,11 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
+
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
+
   return context;
 };
+```
